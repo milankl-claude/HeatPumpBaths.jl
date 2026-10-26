@@ -1,0 +1,25 @@
+model,volume_L,heat_pump_kW,recharge_40_to_55C_min,min_per_degC
+Mini Store XS,60,4,15.7,1.05
+Mini Store XS,60,6,10.5,0.7
+Mini Store XS,60,8,7.8,0.52
+Mini Store XS,60,10,6.3,0.42
+Mini Store XS,60,12,5.2,0.35
+Mini Store XS,60,14,4.5,0.3
+Mini Store,80,4,20.9,1.39
+Mini Store,80,6,14,0.93
+Mini Store,80,8,10.5,0.7
+Mini Store,80,10,8.4,0.56
+Mini Store,80,12,7,0.47
+Mini Store,80,14,6,0.4
+Mini Store T / F,110,4,28.8,1.92
+Mini Store T / F,110,6,19.2,1.28
+Mini Store T / F,110,8,14.4,0.96
+Mini Store T / F,110,10,11.5,0.77
+Mini Store T / F,110,12,9.6,0.64
+Mini Store T / F,110,14,8.2,0.55
+Mini Store XL,130,4,34,2.27
+Mini Store XL,130,6,22.7,1.51
+Mini Store XL,130,8,17,1.13
+Mini Store XL,130,10,13.6,0.91
+Mini Store XL,130,12,11.3,0.75
+Mini Store XL,130,14,9.7,0.65
