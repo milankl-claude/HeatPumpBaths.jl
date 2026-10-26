@@ -1,0 +1,61 @@
+name: Export Pluto notebook to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pluto does not yet precompile on Julia 1.13
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/packages
+            ~/.julia/compiled
+          key: ${{ runner.os }}-pluto-${{ hashFiles('**/*.jl') }}
+          restore-keys: ${{ runner.os }}-pluto-
+
+      - name: Run and export the notebook
+        run: |
+          julia -e '
+            using Pkg
+            Pkg.activate(mktempdir())
+            Pkg.add(Pkg.PackageSpec(name = "PlutoSliderServer", version = "1"))
+            import PlutoSliderServer
+            PlutoSliderServer.export_directory(".";
+                Export_output_dir = "_site",
+                Export_exclude = ["test/*", "scripts/*"],
+            )'
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: export
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

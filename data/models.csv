@@ -1,0 +1,6 @@
+model,volume_L,shell_height_mm,shell_diameter_mm,overall_height_mm,overall_diameter_mm,weight_empty_kg,weight_full_kg,standing_heat_loss_kWh_per_24h
+Mini Store XS,60,595,375,625,475,25,85,0.96
+Mini Store,80,800,375,830,475,34,105,1.08
+Mini Store FAT,110,800,450,830,550,51,161,1.27
+Mini Store Tall,110,1070,375,1100,475,52,162,1.27
+Mini Store XL,130,970,450,1000,550,67,197,1.40
