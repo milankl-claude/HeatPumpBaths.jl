@@ -46,6 +46,10 @@ jobs:
                 Export_exclude = ["test/*", "scripts/*"],
             )'
 
+      # old notebook URL (bath_analysis.html) forwards to the site root
+      - name: Add redirects
+        run: cp web/redirects/*.html _site/
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

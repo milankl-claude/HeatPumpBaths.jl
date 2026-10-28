@@ -3,7 +3,7 @@
 How big a bath can a heat pump with a [Heat Geek Mini Store](https://newarkcylinders.co.uk/) fill,
 and how long does it take?
 
-**Interactive notebook:** https://milankl.github.io/HeatPumpBaths.jl/bath_analysis.html
+**Interactive notebook:** https://milankl.github.io/HeatPumpBaths.jl/
 
 For a chosen store type, heat pump size, store temperature and mains inlet temperature, the graph
 shows the largest bath that can be filled at bath temperatures of 37–45 °C, against the time it
@@ -14,7 +14,7 @@ notebook.
 
 | Path | Content |
 |---|---|
-| `bath_analysis.jl` | The [Pluto](https://plutojl.org) notebook: model, explanation, interactive graph |
+| `index.jl` | The [Pluto](https://plutojl.org) notebook: model, explanation, interactive graph |
 | `web/model.js` | JavaScript copy of the model, so the graph is interactive on the static website |
 | `data/` | Tables extracted from the Mini Store booklet (`runtime.csv`, `models.csv`, `recharge.csv`) |
 | `scripts/extract.py` | Extracts `data/` from the booklet PDF |
@@ -25,12 +25,12 @@ notebook.
 
 ```julia
 using Pluto
-Pluto.run()   # then open bath_analysis.jl
+Pluto.run()   # then open index.jl
 ```
 
 ## Changing the model
 
-The model exists twice: in Julia (`bath_analysis.jl`) and in JavaScript (`web/model.js`), which the
+The model exists twice: in Julia (`index.jl`) and in JavaScript (`web/model.js`), which the
 website's interactive graph uses. Any change to the model must be made in both. The `Test` workflow
 runs both on a grid of inputs and fails if they disagree; run it locally with
 

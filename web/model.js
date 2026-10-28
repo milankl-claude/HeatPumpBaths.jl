@@ -1,4 +1,4 @@
-// Bath-filling model, JavaScript mirror of the Julia functions in bath_analysis.jl.
+// Bath-filling model, JavaScript mirror of the Julia functions in index.jl.
 // Runs in the browser (interactive graph) and in Node (test/consistency.jl).
 // Any change to the model must be made in both places; test/consistency.jl checks they agree.
 

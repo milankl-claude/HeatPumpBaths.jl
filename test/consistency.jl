@@ -1,10 +1,10 @@
 # Check that the JavaScript model (web/model.js, used by the interactive graph) gives the same
-# results as the Julia model in bath_analysis.jl, over a grid of all controls.
+# results as the Julia model in index.jl, over a grid of all controls.
 # Run from the repository root:  julia --project=test test/consistency.jl
 using Test, PlutoUI, CairoMakie, NodeJS_20_jll
 
 const ROOT = dirname(@__DIR__)
-include(joinpath(ROOT, "bath_analysis.jl"))   # defines the model functions and `runtime_columns`
+include(joinpath(ROOT, "index.jl"))   # defines the model functions and `runtime_columns`
 
 # minimal JSON writer for the numbers, strings, bools and vectors passed to Node
 tojs(x::AbstractString) = repr(x)
