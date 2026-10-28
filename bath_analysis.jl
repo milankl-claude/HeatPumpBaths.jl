@@ -67,6 +67,19 @@ F_{40} = F\,\frac{T_d - T_\text{in}}{40 - T_\text{in}},
 
 so the largest bath is ``V_\max = F\; t_\max(F_{40})``, provided ``T_d`` is below the store temperature.
 
+**Smaller baths.** A bath smaller than ``V_\max(F)`` can be filled at the same flow ``F``, it just
+takes less time. So the set of achievable (fill time, volume) pairs is the union over all flows of the
+segments from the origin to ``(t_\max(F),\, V_\max(F))``, and its edge is the upper envelope
+
+```math
+V(t) = \max\,\{\, F\,t \;:\; t_\max(F) \geq t \,\}.
+```
+
+For short fill times every flow qualifies, so the edge follows the fastest flow the booklet covers,
+``F_{40} = 10`` L/min, straight into the origin. Since ``F_{40} = \big(F\,(T - T_\text{in}) + \tfrac12 U\,(T - T_\text{room})/\rho c\big)/(40 - T_\text{in})``
+is linear in ``F``, that fastest tap flow follows directly. Nothing is extrapolated beyond the data at
+long fill times.
+
 **How the table is used.** ``t_\max`` is interpolated linearly in flow between the tabulated
 5, 6, 8, 10 L/min; outside that range there is no data and nothing is plotted. A "-" cell (under 5 min) counts as 0 min, and "3 hr+" as 180 min,
 so in that case ``V_\max`` is a **lower bound** (dashed in the graph).
@@ -150,6 +163,39 @@ function max_bath_volume(table, T, F; inlet_temperature, store_temperature, loss
     return (F * minutes, capped)
 end
 
+# ╔═╡ 8f3c2b1a-4d5e-4f60-9a7b-0c1d2e3f4a66
+"""
+Largest bath volume (L) that can be filled within each fill time in `times` (min) at bath
+temperature `T`. Any bath smaller than ``V_\\max(F)`` can be filled at the same flow ``F`` in less
+time, so this is the upper envelope over tap flows of ``F t``, taken over the flows whose run time
+``t_\\max`` is at least ``t``. Flows are limited to the booklet's 5–10 L/min (40 °C-equivalent).
+Returns `(volumes, capped, flows)`: NaN volume where no flow manages, `flows` the limiting flow.
+"""
+function bath_frontier(table, T, times; inlet_temperature, store_temperature, loss_coefficient,
+        room_temperature, number_of_flows = 1000)
+    # F₄₀ = a F + b is linear in the tap flow F, so the tabulated F₄₀ range maps to a tap flow range
+    a = (T - inlet_temperature) / (40 - inlet_temperature)
+    b = loss_coefficient * max(T - room_temperature, 0) / (2 * RHO_C * (40 - inlet_temperature))
+    slowest = max((first(table.flow) - b) / a, 1.0e-3)
+    fastest = (last(table.flow) - b) / a * (1 - 1.0e-9)     # shrink to stay inside the table
+    volumes = fill(NaN, length(times))
+    capped = fill(false, length(times))
+    limiting_flows = fill(NaN, length(times))
+    fastest <= slowest && return (volumes, capped, limiting_flows)
+    for F in range(slowest, fastest; length = number_of_flows)
+        volume, flow_capped = max_bath_volume(table, T, F; inlet_temperature, store_temperature,
+            loss_coefficient, room_temperature)
+        isnan(volume) && continue
+        run_time = volume / F
+        for (i, t) in enumerate(times)
+            if t <= run_time && !(F * t <= volumes[i])    # also true when volumes[i] is NaN
+                volumes[i], capped[i], limiting_flows[i] = F * t, flow_capped, F
+            end
+        end
+    end
+    return (volumes, capped, limiting_flows)
+end
+
 # ╔═╡ 0f04360a-f619-4ade-b934-6b8f9440a8bf
 md"""
 ## Caveats
@@ -159,16 +205,18 @@ md"""
   than the delivery temperature ``T_d``.
 - Bath heat loss uses a single lumped coefficient ``U`` and the mean fill fraction ½; a cold tub
   (especially cast iron or steel) absorbs extra heat at the start, which you can mimic with a larger ``U``.
-- Equivalent flows outside the booklet's 5–10 L/min are not plotted (no data), which is why lines
-  stop at their slow (right-hand) end.
+- Only 40 °C-equivalent flows of 5–10 L/min are used (the booklet's range). Lines therefore stop at
+  their slow (right-hand) end, and small baths follow the fastest flow in the data even if the tap
+  could run faster.
 """
 
 # ╔═╡ a1f0c3d2-6e4b-4c8a-9f21-3b5d7e9a0c11
 md"""
 ## How big a bath, and how long does it take to fill?
 
-Each coloured line is a bath temperature; moving along it changes the tap flow rate (grey guides).
-The end of a line is the largest bath the store can fill at that temperature. Dashed: the booklet's
+Each coloured line is a bath temperature and shows the largest bath that can be filled within a given
+time; every smaller bath can be filled too. Small baths fill at the fastest flow the booklet covers,
+so lines start at the origin along that flow; the right end of a line is the slowest flow in the data. Dashed: the booklet's
 "3 hr+" was reached, so the bath could be larger. Odd heat pump sizes are interpolated between the
 booklet's even-kW tables. Bath loss ``U = 75`` W/K means a full 150 L bath at 40 °C in an 18 °C
 room cools by about 0.16 °C/min. Fat and Tall (both 110 L) share one booklet table.
@@ -253,19 +301,16 @@ function draw() {
     const table = BathModel.runtimeTable(rows, store, settings.inletTemperature, storeTemperature, heatPump);
     const traces = [], annotations = [], shapes = [];
     let longestTime = 0, largestVolume = 0;
+    const times = Array.from({ length: 2001 }, (_, i) => i / 10);   // 0 to 200 min
     for (let k = 0; k < 9; k++) {
         const T = 37 + k;
-        const solid = { x: [], y: [], customdata: [] }, dashed = { x: [], y: [], customdata: [] };
-        for (let F = 3; F <= 10.0001; F += 0.05) {
-            const [volume, capped] = BathModel.maxBathVolume(table, T, F, settings);
-            const time = volume / F;
-            if (!isNaN(volume)) { longestTime = Math.max(longestTime, time); largestVolume = Math.max(largestVolume, volume); }
-            for (const [trace, show] of [[solid, !capped], [dashed, capped]]) {
-                trace.x.push(time);
-                trace.y.push(show && !isNaN(volume) ? volume : null);
-                trace.customdata.push(F);
-            }
-        }
+        const frontier = BathModel.bathFrontier(table, T, times, settings);
+        const solid = { x: times, y: [], customdata: frontier.flows }, dashed = { x: times, y: [], customdata: frontier.flows };
+        frontier.volumes.forEach((volume, i) => {
+            if (!isNaN(volume)) { longestTime = Math.max(longestTime, times[i]); largestVolume = Math.max(largestVolume, volume); }
+            solid.y.push(!isNaN(volume) && !frontier.capped[i] ? volume : null);
+            dashed.y.push(!isNaN(volume) && frontier.capped[i] ? volume : null);
+        });
         const hover = "%{y:.0f} L in %{x:.1f} min<br>at %{customdata:.1f} L/min<extra>" + T + " °C</extra>";
         traces.push({ ...solid, mode: "lines", name: T + " °C", legendgroup: T,
             line: { color: colors[k], width: 3 }, hovertemplate: hover });
@@ -327,7 +372,6 @@ Inlet (mains) temperature $(@bind inlet_temperature PlutoUI.Select([10 => "10 °
 
 # ╔═╡ fc4f3474-d2f1-4d2b-b969-92eb56f751b3
 begin
-    flows = 3:0.05:10
     settings = (; inlet_temperature, store_temperature, loss_coefficient, room_temperature)
     S = STORE_MODELS[store_name]
     table = runtime_table(runtime, S, inlet_temperature, store_temperature, H)
@@ -352,10 +396,9 @@ let
         align = (:right, :bottom), color = (:black, 0.5), fontsize = 11)
 
     bath_temperatures = 37:1:45
+    times = 0:0.1:200
     for (k, T) in enumerate(bath_temperatures)
-        results = [max_bath_volume(table, T, F; settings...) for F in flows]
-        volumes, capped = first.(results), last.(results)
-        times = volumes ./ flows
+        volumes, capped, _ = bath_frontier(table, T, times; settings...)
         lines!(ax, times, ifelse.(capped, NaN, volumes); color = bath_colors[k], linewidth = 3, label = "$(T) °C")
         lines!(ax, times, ifelse.(capped, volumes, NaN); color = bath_colors[k], linewidth = 3, linestyle = :dash)
     end
@@ -379,6 +422,7 @@ end
 # ╠═50da6c0c-3d3a-4100-9565-ecf9c0775ac9
 # ╠═4e2ac973-9e54-4dad-aed1-96c2d4fd91f4
 # ╠═1a9e946f-54ad-427c-b579-4cbe2aa0b10e
+# ╠═8f3c2b1a-4d5e-4f60-9a7b-0c1d2e3f4a66
 # ╠═b2e1d4c3-7f5a-4d9b-8e32-4c6e8f0b1d22
 # ╠═c3f2e5d4-8a6b-4e0c-9f43-5d7f9a1c2e33
 # ╠═d4a3f6e5-9b7c-4f1d-8a54-6e8a0b2d3f44
