@@ -62,5 +62,31 @@ function maxBathVolume(table, T, F, { inletTemperature, storeTemperature, lossCo
     return [F * minutes, capped];
 }
 
-const BathModel = { RHO_C, tabulatedRuntimeTable, runtimeTable, interpolateRuntime, maxBathVolume };
+// Largest bath volume (L) fillable within each fill time in `times` (min) at bath temperature T:
+// upper envelope over tap flows of F*t, over flows whose run time is at least t (flows limited to the
+// booklet's 40 °C-equivalent range). Returns {volumes, capped, flows}; NaN volume where no flow manages.
+function bathFrontier(table, T, times, settings, numberOfFlows = 1000) {
+    const { inletTemperature, lossCoefficient, roomTemperature } = settings;
+    // F40 = a F + b is linear in the tap flow F, so the tabulated F40 range maps to a tap flow range
+    const a = (T - inletTemperature) / (40 - inletTemperature);
+    const b = lossCoefficient * Math.max(T - roomTemperature, 0) / (2 * RHO_C * (40 - inletTemperature));
+    const slowest = Math.max((table.flow[0] - b) / a, 1.0e-3);
+    const fastest = (table.flow[table.flow.length - 1] - b) / a * (1 - 1.0e-9); // stay inside the table
+    const volumes = times.map(() => NaN), capped = times.map(() => false), flows = times.map(() => NaN);
+    if (!(fastest > slowest)) return { volumes, capped, flows };
+    for (let j = 0; j < numberOfFlows; j++) {
+        const F = j === numberOfFlows - 1 ? fastest : slowest + j * (fastest - slowest) / (numberOfFlows - 1);
+        const [volume, flowCapped] = maxBathVolume(table, T, F, settings);
+        if (isNaN(volume)) continue;
+        const runTime = volume / F;
+        for (let i = 0; i < times.length; i++) {
+            if (times[i] <= runTime && !(F * times[i] <= volumes[i])) {  // also true when volumes[i] is NaN
+                volumes[i] = F * times[i]; capped[i] = flowCapped; flows[i] = F;
+            }
+        }
+    }
+    return { volumes, capped, flows };
+}
+
+const BathModel = { RHO_C, tabulatedRuntimeTable, runtimeTable, interpolateRuntime, maxBathVolume, bathFrontier };
 if (typeof module !== "undefined") module.exports = BathModel;
