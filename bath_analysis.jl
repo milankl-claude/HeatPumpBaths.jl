@@ -18,17 +18,35 @@ end
 
 # ╔═╡ dd8f12f5-7b13-44c2-aa4c-1648e1d52916
 md"""
-# How big a bath can a Heat Geek Mini Store fill?
+# How big a bath can a heat pump fill?
 
-Given a store type **S**, heat pump size **H**, store temperature, bath temperature **T** and
-flow rate **F**, what is the largest bath volume **V** that can be filled before the store runs out,
-taking into account the heat the bath loses while it fills?
+A heat pump heats water slowly, so a home without space for a hot water cylinder can instead use a
+small, hot store such as Heat Geek's Mini Store, and heat the bath water through it as it runs.
+How big a bath can that fill, and how quickly?
 
-Data: run-time tables from the *Heat Geek Mini Store V1.1* booklet (pp. 12–19), extracted to
-`data/runtime.csv` by `scripts/extract.py`. All performance data are © Newark Cylinders / Heat Geek,
-taken from the publicly available
-[booklet](https://newarkcylinders.co.uk/wp-content/uploads/2024/08/Heat-Geek-Mini-Store-V1.1-Specification-Installation-Booklet-updated-Sept-2024.pdf);
-this notebook is an independent analysis, not endorsed by either.
+**The problem.** A 5 kW heat pump keeping an 80 L Mini Store at 55 °C cannot fill even a small 80 L
+bath in winter: the store is too small and its temperature drops too quickly. At 45 °C it manages
+about 54 L, and even a lukewarm 37 °C bath stops at about 72 L. The heat the bath loses to the room
+plays only a minor role; leaving it out adds about 6 L.
+
+**Solution 1: a bigger heat pump.** With 7 kW instead of 5 kW, the heat pump reheats the store
+faster, but a small 80 L bath at 45 °C still takes about 20 minutes. Without that patience, if you want
+the bath within 10 minutes, only about 55 L can be filled at a very hot 45 °C, as the heat pump still
+isn't quick enough to keep the store hot. The underlying problem is that a 55 °C store is too close
+to a 45 °C bath. Furthermore, the heat pump has now been sized for a hot bath in winter, not for
+average use, so it is oversized the rest of the year and therefore less efficient, e.g. through
+short cycling.
+
+**Solution 2: a hotter store, temporarily.** Raise the store temperature to 70 °C just before a bath.
+The store supports this, and so do heat pumps with high-temperature refrigerants such as R290. Even
+with the 5 kW heat pump, a very hot 45 °C small bath then fills in 10 minutes, and a standard 120 L
+bath at 40 °C in about 20 minutes. A large 150 L bath stays out of reach unless lukewarm (37 °C), but
+we won't need that. It does require raising the store temperature before the bath (by hand or on a
+timer), and the hotter store loses a little more heat to the loft, but that is far more efficient
+than sizing the heat pump for the rarest use of the year.
+
+The graph starts at the problem's settings. Try 7 kW for solution 1, or a store temperature of
+70 °C for solution 2.
 """
 
 # ╔═╡ 70d34bee-921e-4dc5-bfce-1b4d290964e4
@@ -212,14 +230,19 @@ md"""
 
 # ╔═╡ a1f0c3d2-6e4b-4c8a-9f21-3b5d7e9a0c11
 md"""
-## How big a bath, and how long does it take to fill?
+**Reading the graph.** Each coloured line is a bath temperature and shows the largest bath that
+can be filled within a given time; every smaller bath can be filled too. Small baths fill at the
+fastest flow the booklet covers, so lines start at the origin along that flow; the right end of a
+line is the slowest flow in the data. Dashed: the booklet's "3 hr+" was reached, so the bath could be
+larger. Odd heat pump sizes are interpolated between the booklet's even-kW tables. Bath heat loss
+``U = 75`` W/K means a full 150 L bath at 40 °C in an 18 °C room cools by about 0.16 °C/min. Fat and
+Tall (both 110 L) share one booklet table.
 
-Each coloured line is a bath temperature and shows the largest bath that can be filled within a given
-time; every smaller bath can be filled too. Small baths fill at the fastest flow the booklet covers,
-so lines start at the origin along that flow; the right end of a line is the slowest flow in the data. Dashed: the booklet's
-"3 hr+" was reached, so the bath could be larger. Odd heat pump sizes are interpolated between the
-booklet's even-kW tables. Bath loss ``U = 75`` W/K means a full 150 L bath at 40 °C in an 18 °C
-room cools by about 0.16 °C/min. Fat and Tall (both 110 L) share one booklet table.
+**Data.** Run-time tables from the *Heat Geek Mini Store V1.1* booklet (pp. 12–19), extracted to
+`data/runtime.csv` by `scripts/extract.py`. All performance data are © Newark Cylinders / Heat Geek,
+taken from the publicly available
+[booklet](https://newarkcylinders.co.uk/wp-content/uploads/2024/08/Heat-Geek-Mini-Store-V1.1-Specification-Installation-Booklet-updated-Sept-2024.pdf);
+this notebook is an independent analysis, not endorsed by either.
 """
 
 # ╔═╡ b2e1d4c3-7f5a-4d9b-8e32-4c6e8f0b1d22
@@ -250,7 +273,7 @@ bath_colors = ["#" * CairoMakie.Colors.hex(c) for c in cgrad(:thermal, 10; categ
   .bath-widget .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 18px; margin: 8px 0; }
   .bath-widget label { display: flex; align-items: center; gap: 8px; font-size: 0.95em; }
   .bath-widget label span.name { min-width: 9.5em; }
-  .bath-widget input[type=range] { flex: 1; }
+  .bath-widget input[type=range], .bath-widget select { flex: 1; min-width: 0; }
   .bath-widget output { min-width: 4.5em; font-variant-numeric: tabular-nums; }
 </style>
 <div class="controls">
@@ -264,20 +287,18 @@ bath_colors = ["#" * CairoMakie.Colors.hex(c) for c in cgrad(:thermal, 10; categ
   <label><span class="name">Heat pump</span>
     <input type="range" name="heat_pump" min="4" max="14" step="1" value="5"><output></output></label>
   <label><span class="name">Store temperature</span>
-    <input type="range" name="store_temperature" min="45" max="70" step="5" value="60"><output></output></label>
-</div>
-<div class="plot"></div>
-<div class="controls">
-  <label><span class="name">Inlet (mains)</span>
+    <input type="range" name="store_temperature" min="45" max="70" step="5" value="55"><output></output></label>
+  <label><span class="name">Season</span>
     <select name="inlet">
-      <option value="10" selected>10 °C (winter)</option>
-      <option value="13">13 °C (spring/autumn)</option>
+      <option value="10" selected>winter (10 °C mains)</option>
+      <option value="13">spring/autumn (13 °C mains)</option>
     </select></label>
-  <label><span class="name">Bath loss U</span>
+  <label><span class="name">Bath heat loss</span>
     <input type="range" name="loss" min="0" max="150" step="5" value="75"><output></output></label>
   <label><span class="name">Room temperature</span>
     <input type="range" name="room" min="10" max="25" step="1" value="18"><output></output></label>
 </div>
+<div class="plot"></div>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script>
 $(HypertextLiteral.JavaScript(model_js))
@@ -336,7 +357,7 @@ function draw() {
     }
     const storeLabel = root.querySelector('[name="store"]').selectedOptions[0].textContent;
     Plotly.react(plotDiv, traces, {
-        title: { text: `\${storeLabel}, \${heatPump} kW heat pump, store at \${storeTemperature} °C, inlet \${settings.inletTemperature} °C`,
+        title: { text: `\${storeLabel}, \${heatPump} kW heat pump, store at \${storeTemperature} °C, \${settings.inletTemperature === 10 ? "winter" : "spring/autumn"}`,
             font: { size: 15 } },
         xaxis: { title: "Time to fill the bath (min)", range: [0, maxTime] },
         yaxis: { title: "Bath volume V (L)", range: [0, maxVolume] },
@@ -360,13 +381,13 @@ in Pluto (on the website, use the interactive graph at the top instead).
 
 Store **S** $(@bind store_name PlutoUI.Select(STORE_NAMES; default = "Mini Store (80 L)"))
  Heat pump **H** $(@bind H PlutoUI.Slider(4:1:14; default = 5, show_value = true)) kW
- Store temperature $(@bind store_temperature PlutoUI.Slider(45:5:70; default = 60, show_value = true)) °C
+ Store temperature $(@bind store_temperature PlutoUI.Slider(45:5:70; default = 55, show_value = true)) °C
 """
 
 # ╔═╡ 0ed36d23-39b6-40a7-a568-8ebe822770d9
 md"""
-Inlet (mains) temperature $(@bind inlet_temperature PlutoUI.Select([10 => "10 °C (winter)", 13 => "13 °C (spring/autumn)"]))
- Bath loss ``U`` $(@bind loss_coefficient PlutoUI.Slider(0:5:150; default = 75, show_value = true)) W/K
+Season $(@bind inlet_temperature PlutoUI.Select([10 => "winter (10 °C mains)", 13 => "spring/autumn (13 °C mains)"]))
+ Bath heat loss ``U`` $(@bind loss_coefficient PlutoUI.Slider(0:5:150; default = 75, show_value = true)) W/K
  Room $(@bind room_temperature PlutoUI.Slider(10:1:25; default = 18, show_value = true)) °C
 """
 
@@ -382,7 +403,7 @@ end
 let
     fig = Figure(; size = (900, 520))
     ax = Axis(fig[1, 1]; xlabel = "Time to fill the bath (min)", ylabel = "Bath volume V (L)",
-        title = "$(store_name), $(H) kW heat pump, store at $(store_temperature) °C, inlet $(inlet_temperature) °C")
+        title = "$(store_name), $(H) kW heat pump, store at $(store_temperature) °C, $(inlet_temperature == 10 ? "winter" : "spring/autumn")")
     max_time, max_volume = 40, 250
 
     # guides: constant flow rate F means V = F·t
@@ -409,8 +430,8 @@ end
 
 # ╔═╡ Cell order:
 # ╟─dd8f12f5-7b13-44c2-aa4c-1648e1d52916
-# ╟─a1f0c3d2-6e4b-4c8a-9f21-3b5d7e9a0c11
 # ╟─e5b4a7f6-0c8d-4a2e-9b65-7f9b1c3e4a55
+# ╟─a1f0c3d2-6e4b-4c8a-9f21-3b5d7e9a0c11
 # ╠═70d34bee-921e-4dc5-bfce-1b4d290964e4
 # ╟─c81a072b-6b34-422b-83c5-fc2f11c3b539
 # ╠═f7414c86-1f3c-460e-9283-dac58ef6608e
